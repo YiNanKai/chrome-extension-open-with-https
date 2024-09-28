@@ -1,32 +1,36 @@
-chrome.browserAction.onClicked.addListener(function(tab) {
-  chrome.tabs.executeScript({
-    code: `
-      if(window.location.protocol === 'http:') {
-        const newLocation = window.location.href.replace(window.location.protocol, 'https:')
-        window.location.href = newLocation
-      }
-    `
-  })
-})
-
-chrome.tabs.onActivated.addListener(function({ tabId, windowId }) {
-  chrome.tabs.get(tabId, function(tab) {
-    if (tab.url.indexOf('https:') === 0) {
-      chrome.browserAction.setIcon({ path: '/icons/icon_on_128.png' })
-    } else if (tab.url.indexOf('chrome:') === 0) {
-      chrome.browserAction.setIcon({ path: '/icons/icon_disabled_128.png' })
-    } else {
-      chrome.browserAction.setIcon({ path: '/icons/icon_off_128.png' })
-    }
-  })
-})
-
-chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
-  if (msg.action === 'updateIcon') {
-    if (msg.value.protocol === 'https:') {
-      chrome.browserAction.setIcon({ path: '/icons/icon_on_128.png' })
-    } else {
-      chrome.browserAction.setIcon({ path: '/icons/icon_off_128.png' })
-    }
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.url.startsWith('http:')) {
+    const newUrl = tab.url.replace('http:', 'https:');
+    chrome.tabs.update(tab.id, { url: newUrl });
   }
-})
+});
+
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  chrome.tabs.get(tabId, (tab) => {
+    updateIcon(tab.url);
+  });
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete') {
+    updateIcon(tab.url);
+  }
+});
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.action === 'updateIcon') {
+    updateIcon(msg.value);
+  }
+});
+
+function updateIcon(url) {
+  let iconPath;
+  if (url.startsWith('https:')) {
+    iconPath = '/icons/icon_on_128.png';
+  } else if (url.startsWith('chrome:')) {
+    iconPath = '/icons/icon_disabled_128.png';
+  } else {
+    iconPath = '/icons/icon_off_128.png';
+  }
+  chrome.action.setIcon({ path: iconPath });
+}
